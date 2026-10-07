@@ -80,7 +80,7 @@ impl XmlSecKey {
         let cpath = CString::new(path).unwrap();
         let cpasswd = password.map(|p| CString::new(p).unwrap());
 
-        let cpasswd_ptr = cpasswd.map(|cstr| cstr.as_ptr()).unwrap_or(null());
+        let cpasswd_ptr = cpasswd.as_ref().map(|cstr| cstr.as_ptr()).unwrap_or(null());
 
         // Load key from file
         let key = unsafe {
@@ -112,7 +112,7 @@ impl XmlSecKey {
         // TODO proper sanitization/error handling of input
         let cpasswd = password.map(|p| CString::new(p).unwrap());
 
-        let cpasswd_ptr = cpasswd.map(|cstr| cstr.as_ptr()).unwrap_or(null());
+        let cpasswd_ptr = cpasswd.as_ref().map(|cstr| cstr.as_ptr()).unwrap_or(null());
 
         // Load key from buffer
         let key = unsafe {

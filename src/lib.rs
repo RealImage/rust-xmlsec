@@ -48,7 +48,9 @@ pub use self::crypto::XmlSecSignatureMethod;
 
 pub use self::nodeset::XmlSecNodeSet;
 
-pub use self::xmldsig::XmlSecSignatureContext;
+pub use self::xmldsig::{
+    XmlSecReferenceVerification, XmlSecSignatureContext, XmlSecSignatureVerification,
+};
 pub use self::xmlenc::XmlSecEncryptionContext;
 pub use self::xmlenc::XmlSecEncryptionContextMode;
 pub use self::xmlkeysmngr::XmlSecKeysMngr;

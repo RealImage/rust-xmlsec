@@ -10,14 +10,34 @@ use crate::XmlSecError;
 use crate::XmlSecKey;
 use crate::XmlSecResult;
 
-use crate::xmlkeysmngr::XmlSecKeysMngr;
 use crate::XmlDocument;
 use crate::XmlNode;
 use crate::XmlSecSignatureMethod;
+use crate::xmlkeysmngr::XmlSecKeysMngr;
 
 use std::ffi::c_char;
 use std::mem::forget;
 use std::ptr::null_mut;
+
+/// Digest verification result for one SignedInfo reference.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct XmlSecReferenceVerification {
+    /// URI exactly as supplied by the Reference, or None when absent.
+    pub uri: Option<String>,
+    /// Whether the reference digest matches.
+    pub valid: bool,
+}
+
+/// Cryptographic verification with independent reference and signature results.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct XmlSecSignatureVerification {
+    /// Overall xmlsec verification outcome. Only this field means acceptance.
+    pub verified: bool,
+    /// Whether SignatureValue matches canonicalized SignedInfo.
+    pub signature_valid: bool,
+    /// Every SignedInfo reference, in document order.
+    pub references: Vec<XmlSecReferenceVerification>,
+}
 
 /// Signature signing/veryfying context
 pub struct XmlSecSignatureContext {
@@ -144,6 +164,132 @@ impl XmlSecSignatureContext {
         self.verify_node_raw(sig)
     }
 
+    /// Verify every SignedInfo reference and SignatureValue independently.
+    ///
+    /// Unlike the ordinary verifier's early return on a bad digest, this method
+    /// completes the remaining checks so callers can diagnose multiple failures.
+    /// Call on a fresh context with a key or manager installed. Detailed diagnostics
+    /// for manifest failures are unsupported and return an error.
+    /// Processing errors remain errors, never partial verification success.
+    pub fn verify_document_detailed(
+        &mut self,
+        doc: &XmlDocument,
+    ) -> XmlSecResult<XmlSecSignatureVerification> {
+        let verified = self.verify_document(doc)?;
+        let signature = find_root(doc)?;
+        // SAFETY: self owns the initialized context and doc keeps every node
+        // alive. All new reference contexts are added to the parent's owned
+        // list before processing, or explicitly destroyed on insertion failure.
+        // Strings/results are copied out before the parent context is dropped.
+        unsafe {
+            let ctx = self.ctx;
+            if !verified && bindings::xmlSecPtrListGetSize(&mut (*ctx).manifestReferences) != 0 {
+                return Err("Detailed verification does not support manifests".into());
+            }
+            let signed_info = bindings::xmlSecFindChild(
+                signature,
+                &bindings::xmlSecNodeSignedInfo as *const xmlChar,
+                &bindings::xmlSecDSigNs as *const xmlChar,
+            );
+            if signed_info.is_null()
+                || (*ctx).signMethod.is_null()
+                || (*ctx).signValueNode.is_null()
+            {
+                return Err(XmlSecError::NodeNotFound);
+            }
+            let list = &mut (*ctx).signedInfoReferences;
+            let processed = bindings::xmlSecPtrListGetSize(list);
+            let mut node = bindings::xmlSecFindChild(
+                signed_info,
+                &bindings::xmlSecNodeReference as *const xmlChar,
+                &bindings::xmlSecDSigNs as *const xmlChar,
+            );
+            let mut index = 0;
+            while !node.is_null() {
+                if bindings::xmlSecCheckNodeName(
+                    node,
+                    &bindings::xmlSecNodeReference as *const xmlChar,
+                    &bindings::xmlSecDSigNs as *const xmlChar,
+                ) == 0
+                {
+                    return Err(XmlSecError::VerifyError);
+                }
+                if index >= processed {
+                    let reference = bindings::xmlSecDSigReferenceCtxCreate(
+                        ctx,
+                        bindings::xmlSecDSigReferenceOrigin_xmlSecDSigReferenceOriginSignedInfo,
+                    );
+                    if reference.is_null() {
+                        return Err(XmlSecError::VerifyError);
+                    }
+                    if bindings::xmlSecPtrListAdd(list, reference.cast()) < 0 {
+                        bindings::xmlSecDSigReferenceCtxDestroy(reference);
+                        return Err(XmlSecError::VerifyError);
+                    }
+                    if bindings::xmlSecDSigReferenceCtxProcessNode(reference, node) < 0 {
+                        return Err(XmlSecError::VerifyError);
+                    }
+                }
+                index += 1;
+                node = bindings::xmlSecGetNextElementNode((*node).next);
+            }
+            if (*ctx).failureReason
+                == bindings::xmlSecDSigFailureReason_xmlSecDSigFailureReasonReference
+            {
+                // xmlsec prepared the C14N/signature transform chain before it
+                // checked references, but stopped before executing it. Finish
+                // exactly that chain (including algorithm-specific parameters).
+                let nodeset =
+                    bindings::xmlSecNodeSetGetChildren((*signed_info).doc, signed_info, 1, 0);
+                if nodeset.is_null() {
+                    return Err(XmlSecError::VerifyError);
+                }
+                let result =
+                    bindings::xmlSecTransformCtxXmlExecute(&mut (*ctx).transformCtx, nodeset);
+                bindings::xmlSecNodeSetDestroy(nodeset);
+                if result < 0
+                    || bindings::xmlSecTransformVerifyNodeContent(
+                        (*ctx).signMethod,
+                        (*ctx).signValueNode,
+                        &mut (*ctx).transformCtx,
+                    ) < 0
+                {
+                    return Err(XmlSecError::VerifyError);
+                }
+            }
+            let signature_valid = (*(*ctx).signMethod).status
+                == bindings::xmlSecTransformStatus_xmlSecTransformStatusOk;
+            let mut references = Vec::with_capacity(index);
+            for index in 0..bindings::xmlSecPtrListGetSize(list) {
+                let reference = bindings::xmlSecPtrListGetItem(list, index)
+                    .cast::<bindings::xmlSecDSigReferenceCtx>();
+                if reference.is_null() {
+                    return Err(XmlSecError::VerifyError);
+                }
+                let valid = match (*reference).status {
+                    bindings::xmlSecDSigStatus_xmlSecDSigStatusSucceeded => true,
+                    bindings::xmlSecDSigStatus_xmlSecDSigStatusInvalid => false,
+                    _ => return Err(XmlSecError::VerifyError),
+                };
+                let uri = if (*reference).uri.is_null() {
+                    None
+                } else {
+                    Some(
+                        std::ffi::CStr::from_ptr((*reference).uri.cast())
+                            .to_string_lossy()
+                            .into_owned(),
+                    )
+                };
+                references.push(XmlSecReferenceVerification { uri, valid });
+            }
+            Ok(XmlSecSignatureVerification {
+                verified,
+                signature_valid,
+                references,
+            })
+        }
+    }
+
     /// Sets the verification time to be used for the signature verification.
     pub fn set_verification_time(&mut self, time: i64) {
         unsafe {
@@ -173,8 +319,14 @@ impl XmlSecSignatureContext {
 
     /// Gets the signature method used in the context.
     pub fn signature_method(&self) -> Option<XmlSecSignatureMethod> {
+        // SAFETY: self owns ctx, but xmlsec sets signMethod only after parsing
+        // SignedInfo. An unused or unsuccessfully parsed context has no method.
         unsafe {
-            let signmethod = (*(*self.ctx).signMethod).id;
+            let transform = (*self.ctx).signMethod;
+            if transform.is_null() {
+                return None;
+            }
+            let signmethod = (*transform).id;
 
             if signmethod.is_null() {
                 None
@@ -186,8 +338,14 @@ impl XmlSecSignatureContext {
 
     /// Gets the signature method name used in the context.
     pub fn signature_method_name(&self) -> Option<String> {
+        // SAFETY: self owns ctx, but xmlsec sets signMethod only after parsing
+        // SignedInfo. An unused or unsuccessfully parsed context has no method.
         unsafe {
-            let signmethod = (*(*self.ctx).signMethod).id;
+            let transform = (*self.ctx).signMethod;
+            if transform.is_null() {
+                return None;
+            }
+            let signmethod = (*transform).id;
 
             if signmethod.is_null() {
                 None

@@ -89,6 +89,7 @@ pub struct ReferenceSignatureBuilder<'a> {
     sig: XmlSecSignatureMethod,
     uri: Option<CString>,
     with_enveloped: bool,
+    canonicalization: Option<XmlSecCanonicalizationMethod>,
 }
 
 /// Build a key information node
@@ -143,10 +144,11 @@ impl<'a> X509Builder<'a> {
             })
             .collect::<Vec<_>>()
             .join(",");
+        let issuer_string = CString::new(issuer_string).unwrap();
         unsafe {
             bindings::xmlSecTmplX509IssuerSerialAddIssuerName(
                 x509ser,
-                CString::new(issuer_string).unwrap().into_raw() as *const c_uchar,
+                issuer_string.as_ptr().cast(),
             );
         }
 
@@ -157,10 +159,11 @@ impl<'a> X509Builder<'a> {
             .to_dec_str()
             .unwrap()
             .to_string();
+        let serial_number = CString::new(serial_number).unwrap();
         unsafe {
             bindings::xmlSecTmplX509IssuerSerialAddSerialNumber(
                 x509ser,
-                CString::new(serial_number).unwrap().into_raw() as *const c_uchar,
+                serial_number.as_ptr().cast(),
             );
         }
 
@@ -252,6 +255,7 @@ impl<'a> ReferenceSignatureBuilder<'a> {
             sig: XmlSecSignatureMethod::Sha1,
             uri: None,
             with_enveloped: true,
+            canonicalization: None,
         }
     }
 
@@ -273,15 +277,15 @@ impl<'a> ReferenceSignatureBuilder<'a> {
         self
     }
 
+    /// Canonicalize the reference after the optional enveloped transform.
+    pub fn canonicalization(mut self, method: XmlSecCanonicalizationMethod) -> Self {
+        self.canonicalization = Some(method);
+        self
+    }
+
     /// Adds a new reference signature node to the signature node
     pub fn add_node(self) {
-        let curi = {
-            if let Some(uri) = self.uri {
-                uri.into_raw() as *const c_uchar
-            } else {
-                null()
-            }
-        };
+        let curi = self.uri.as_ref().map_or(null(), |uri| uri.as_ptr().cast());
         let reference = unsafe {
             bindings::xmlSecTmplSignatureAddReference(
                 self.signature_node.node,
@@ -307,6 +311,16 @@ impl<'a> ReferenceSignatureBuilder<'a> {
             if envelope.is_null() {
                 panic!("Failed to add enveloped transform")
             }
+        }
+        if let Some(method) = self.canonicalization {
+            // SAFETY: the reference belongs to the live signature document;
+            // xmlsec copies the transform configuration into that document.
+            let transform =
+                unsafe { bindings::xmlSecTmplReferenceAddTransform(reference, method.to_method()) };
+            assert!(
+                !transform.is_null(),
+                "Failed to add canonicalization transform"
+            );
         }
     }
 }
@@ -337,13 +351,10 @@ impl<'a> XmlDocumentTemplateBuilder<'a> {
     /// Builds the actual template and returns
     pub fn build(self) -> XmlSecResult<SignatureNode<'a>> {
         let docptr = self.doc.doc_ptr() as *mut libxml::bindings::xmlDoc;
-        let c_ns_prefix = {
-            if let Some(ns_prefix) = self.ns_prefix {
-                CString::new(ns_prefix).unwrap().into_raw() as *const c_uchar
-            } else {
-                null()
-            }
-        };
+        let ns_prefix = self.ns_prefix.map(|prefix| CString::new(prefix).unwrap());
+        let c_ns_prefix = ns_prefix
+            .as_ref()
+            .map_or(null(), |prefix| prefix.as_ptr().cast());
 
         let node = unsafe {
             bindings::xmlSecTmplSignatureCreateNsPref(
@@ -363,12 +374,7 @@ impl<'a> XmlDocumentTemplateBuilder<'a> {
             return Err(XmlSecError::RootNotFound);
         };
 
-        unsafe {
-            libxml::bindings::xmlAddChild(
-                rootptr as *mut libxml::bindings::_xmlNode,
-                node as *mut libxml::bindings::_xmlNode,
-            )
-        };
+        unsafe { libxml::bindings::xmlAddChild(rootptr, node) };
 
         Ok(SignatureNode {
             doc: self.doc,

@@ -71,3 +71,38 @@ fn test_template_creation_with_ns_prefix() {
 
     assert_eq!(doc.to_string(), reference);
 }
+
+#[test]
+fn reference_canonicalization_follows_the_enveloped_transform() {
+    let doc = XmlParser::default().parse_string("<root/>").unwrap();
+    let signature = XmlSecDocumentTemplateBuilder::new(&doc)
+        .canonicalization(XmlSecCanonicalizationMethod::InclusiveC14NWithComments)
+        .signature(XmlSecSignatureMethod::RsaSha256)
+        .build()
+        .unwrap();
+    ReferenceSignatureBuilder::new(&signature)
+        .signature(XmlSecSignatureMethod::Sha256)
+        .uri("")
+        .with_enveloped(true)
+        .canonicalization(XmlSecCanonicalizationMethod::InclusiveC14NWithComments)
+        .add_node();
+    let xpath = libxml::xpath::Context::new(&doc).unwrap();
+    xpath
+        .register_namespace("ds", "http://www.w3.org/2000/09/xmldsig#")
+        .unwrap();
+    let nodes = xpath
+        .evaluate("//ds:Reference/ds:Transforms/ds:Transform")
+        .unwrap()
+        .get_nodes_as_vec();
+    let algorithms: Vec<_> = nodes
+        .iter()
+        .map(|n| n.get_property("Algorithm").unwrap())
+        .collect();
+    assert_eq!(
+        algorithms,
+        [
+            "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+            "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"
+        ]
+    );
+}

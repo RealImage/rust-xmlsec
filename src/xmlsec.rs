@@ -12,6 +12,10 @@ use std::ffi::c_int;
 use std::ptr::null;
 use std::sync::Mutex;
 
+/// Callback invoked for an XML security diagnostic.
+pub type ErrorCallback =
+    Box<dyn Fn(Option<&str>, Option<&str>, XmlSecErrorReason, Option<&str>) + Send>;
+
 static XMLSEC: Lazy<Mutex<Option<XmlSecContext>>> = Lazy::new(|| Mutex::new(None));
 
 /// XmlSec Error Reason
@@ -141,9 +145,7 @@ impl From<i32> for XmlSecErrorReason {
 }
 
 /// Set the error callback
-pub fn set_error_callback(
-    cb: Option<Box<dyn Fn(Option<&str>, Option<&str>, XmlSecErrorReason, Option<&str>) + Send>>,
-) {
+pub fn set_error_callback(cb: Option<ErrorCallback>) {
     guarantee_xmlsec_init();
     XMLSEC
         .lock()
@@ -246,10 +248,8 @@ pub fn guarantee_xmlsec_init() {
 /// require the context to be initialized. See [`globals`][globals].
 ///
 /// [globals]: globals
-
 struct XmlSecContext {
-    error_callback:
-        Option<Box<dyn Fn(Option<&str>, Option<&str>, XmlSecErrorReason, Option<&str>) + Send>>,
+    error_callback: Option<ErrorCallback>,
 }
 
 impl XmlSecContext {
