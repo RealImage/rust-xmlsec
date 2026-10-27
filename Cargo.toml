@@ -12,7 +12,6 @@ description = "Wrapper for xmlsec1 library"
 homepage = "https://github.com/zerocom38/rust-xmlsec"
 repository = "https://github.com/zerocom38/rust-xmlsec"
 keywords = ["xml", "xmlsec", "dsig"]
-build = "build.rs"
 
 [features]
 vendored = ["dep:xmlsec1-src"]
