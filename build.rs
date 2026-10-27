@@ -54,7 +54,25 @@ fn find_vendored_xmlsec() -> XmlSec {
 /// Links against a system installed xmlsec1 (OpenSSL backend).
 #[cfg(not(target_os = "windows"))]
 fn find_system_xmlsec() -> XmlSec {
-    let lib = pkg_config::find_library("xmlsec1-openssl").expect("xmlsec1-openssl not found");
+    let lib = pkg_config::Config::new()
+        .cargo_metadata(false)
+        .probe("xmlsec1-openssl")
+        .expect("xmlsec1-openssl not found");
+
+    // Default system dirs are searched by the linker anyway. Passing them explicitly
+    // (e.g. `/usr/lib` from Homebrew's libxslt.pc on macOS) would place them before
+    // other dirs and link the system libxml2 instead of the one xmlsec was built against.
+    for path in lib
+        .link_paths
+        .iter()
+        .filter(|p| !["/usr/lib", "/lib"].iter().any(|sys| p.as_path() == std::path::Path::new(sys)))
+    {
+        println!("cargo:rustc-link-search=native={}", path.display());
+    }
+    for name in &lib.libs {
+        println!("cargo:rustc-link-lib={name}");
+    }
+
     let defines = lib
         .defines
         .iter()
