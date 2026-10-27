@@ -86,4 +86,133 @@ impl XmlSecSignatureMethod {
             Self::Sha512        => unsafe { bindings::xmlSecOpenSSLTransformSha512GetKlass() },
         }
     }
+
+    pub(crate) fn from_method(method: bindings::xmlSecTransformId) -> Option<Self> {
+        match method {
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformAes128CbcGetKlass() } => {
+                Some(Self::Aes128Cbc)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformAes192CbcGetKlass() } => {
+                Some(Self::Aes192Cbc)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformAes256CbcGetKlass() } => {
+                Some(Self::Aes256Cbc)
+            }
+            // _ if method == unsafe { bindings::xmlSecOpenSSLTransformAes128GcmGetKlass() } => {
+            //     Some(Self::Aes128Gcm)
+            // }
+            // _ if method == unsafe { bindings::xmlSecOpenSSLTransformAes192GcmGetKlass() } => {
+            //     Some(Self::Aes192Gcm)
+            // }
+            // _ if method == unsafe { bindings::xmlSecOpenSSLTransformAes256GcmGetKlass() } => {
+            //     Some(Self::Aes256Gcm)
+            // }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformKWAes128GetKlass() } => {
+                Some(Self::KWAes128)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformKWAes192GetKlass() } => {
+                Some(Self::KWAes192)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformKWAes256GetKlass() } => {
+                Some(Self::KWAes256)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformDes3CbcGetKlass() } => {
+                Some(Self::Des3Cbc)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformKWDes3GetKlass() } => {
+                Some(Self::KWDes3)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformDsaSha1GetKlass() } => {
+                Some(Self::DsaSha1)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformDsaSha256GetKlass() } => {
+                Some(Self::DsaSha256)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformEcdsaSha1GetKlass() } => {
+                Some(Self::EcdsaSha1)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformEcdsaSha224GetKlass() } => {
+                Some(Self::EcdsaSha224)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformEcdsaSha256GetKlass() } => {
+                Some(Self::EcdsaSha256)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformEcdsaSha384GetKlass() } => {
+                Some(Self::EcdsaSha384)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformEcdsaSha512GetKlass() } => {
+                Some(Self::EcdsaSha512)
+            }
+            // _ if method == unsafe { bindings::xmlSecOpenSSLTransformHmacMd5GetKlass() } => {
+            //     Some(Self::HmacMd5)
+            // }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformHmacRipemd160GetKlass() } => {
+                Some(Self::HmacRipemd160)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformHmacSha1GetKlass() } => {
+                Some(Self::HmacSha1)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformHmacSha224GetKlass() } => {
+                Some(Self::HmacSha224)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformHmacSha256GetKlass() } => {
+                Some(Self::HmacSha256)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformHmacSha384GetKlass() } => {
+                Some(Self::HmacSha384)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformHmacSha512GetKlass() } => {
+                Some(Self::HmacSha512)
+            }
+            // _ if method == unsafe { bindings::xmlSecOpenSSLTransformMd5GetKlass() } => {
+            //     Some(Self::Md5)
+            // }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformRipemd160GetKlass() } => {
+                Some(Self::Ripemd160)
+            }
+            // _ if method == unsafe { bindings::xmlSecOpenSSLTransformRsaMd5GetKlass() } => {
+            //     Some(Self::RsaMd5)
+            // }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformRsaRipemd160GetKlass() } => {
+                Some(Self::RsaRipemd160)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformRsaSha1GetKlass() } => {
+                Some(Self::RsaSha1)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformRsaSha224GetKlass() } => {
+                Some(Self::RsaSha224)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformRsaSha256GetKlass() } => {
+                Some(Self::RsaSha256)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformRsaSha384GetKlass() } => {
+                Some(Self::RsaSha384)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformRsaSha512GetKlass() } => {
+                Some(Self::RsaSha512)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformRsaPkcs1GetKlass() } => {
+                Some(Self::RsaPkcs1)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformRsaOaepGetKlass() } => {
+                Some(Self::RsaOaep)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformSha1GetKlass() } => {
+                Some(Self::Sha1)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformSha224GetKlass() } => {
+                Some(Self::Sha224)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformSha256GetKlass() } => {
+                Some(Self::Sha256)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformSha384GetKlass() } => {
+                Some(Self::Sha384)
+            }
+            _ if method == unsafe { bindings::xmlSecOpenSSLTransformSha512GetKlass() } => {
+                Some(Self::Sha512)
+            }
+            _ => None,
+        }
+    }
 }
