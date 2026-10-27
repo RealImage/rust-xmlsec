@@ -21,13 +21,16 @@ pub enum XmlSecSignatureMethod {
     EcdsaSha256,
     EcdsaSha384,
     EcdsaSha512,
+    #[cfg(xmlsec_ripemd160)]
     HmacRipemd160,
     HmacSha1,
     HmacSha224,
     HmacSha256,
     HmacSha384,
     HmacSha512,
+    #[cfg(xmlsec_ripemd160)]
     Ripemd160,
+    #[cfg(xmlsec_ripemd160)]
     RsaRipemd160,
     RsaSha1,
     RsaSha224,
@@ -64,13 +67,16 @@ impl XmlSecSignatureMethod {
             Self::EcdsaSha256   => unsafe { bindings::xmlSecOpenSSLTransformEcdsaSha256GetKlass() },
             Self::EcdsaSha384   => unsafe { bindings::xmlSecOpenSSLTransformEcdsaSha384GetKlass() },
             Self::EcdsaSha512   => unsafe { bindings::xmlSecOpenSSLTransformEcdsaSha512GetKlass() },
+            #[cfg(xmlsec_ripemd160)]
             Self::HmacRipemd160 => unsafe { bindings::xmlSecOpenSSLTransformHmacRipemd160GetKlass() },
             Self::HmacSha1      => unsafe { bindings::xmlSecOpenSSLTransformHmacSha1GetKlass() },
             Self::HmacSha224    => unsafe { bindings::xmlSecOpenSSLTransformHmacSha224GetKlass() },
             Self::HmacSha256    => unsafe { bindings::xmlSecOpenSSLTransformHmacSha256GetKlass() },
             Self::HmacSha384    => unsafe { bindings::xmlSecOpenSSLTransformHmacSha384GetKlass() },
             Self::HmacSha512    => unsafe { bindings::xmlSecOpenSSLTransformHmacSha512GetKlass() },
+            #[cfg(xmlsec_ripemd160)]
             Self::Ripemd160     => unsafe { bindings::xmlSecOpenSSLTransformRipemd160GetKlass() },
+            #[cfg(xmlsec_ripemd160)]
             Self::RsaRipemd160  => unsafe { bindings::xmlSecOpenSSLTransformRsaRipemd160GetKlass() },
             Self::RsaSha1       => unsafe { bindings::xmlSecOpenSSLTransformRsaSha1GetKlass() },
             Self::RsaSha224     => unsafe { bindings::xmlSecOpenSSLTransformRsaSha224GetKlass() },
@@ -146,6 +152,7 @@ impl XmlSecSignatureMethod {
             // _ if method == unsafe { bindings::xmlSecOpenSSLTransformHmacMd5GetKlass() } => {
             //     Some(Self::HmacMd5)
             // }
+            #[cfg(xmlsec_ripemd160)]
             _ if method == unsafe { bindings::xmlSecOpenSSLTransformHmacRipemd160GetKlass() } => {
                 Some(Self::HmacRipemd160)
             }
@@ -167,12 +174,14 @@ impl XmlSecSignatureMethod {
             // _ if method == unsafe { bindings::xmlSecOpenSSLTransformMd5GetKlass() } => {
             //     Some(Self::Md5)
             // }
+            #[cfg(xmlsec_ripemd160)]
             _ if method == unsafe { bindings::xmlSecOpenSSLTransformRipemd160GetKlass() } => {
                 Some(Self::Ripemd160)
             }
             // _ if method == unsafe { bindings::xmlSecOpenSSLTransformRsaMd5GetKlass() } => {
             //     Some(Self::RsaMd5)
             // }
+            #[cfg(xmlsec_ripemd160)]
             _ if method == unsafe { bindings::xmlSecOpenSSLTransformRsaRipemd160GetKlass() } => {
                 Some(Self::RsaRipemd160)
             }

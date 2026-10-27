@@ -92,7 +92,7 @@ fn generate_bindings(xmlsec: &XmlSec) {
         .map(|inc| format!("-I{}", inc.display()))
         .collect::<Vec<_>>();
 
-    bindgen::Builder::default()
+    let bindings = bindgen::Builder::default()
         .header("bindings.h")
         .clang_args(&xmlsec.defines)
         .clang_args(includes)
@@ -103,8 +103,15 @@ fn generate_bindings(xmlsec: &XmlSec) {
         .generate_comments(true)
         .generate()
         .expect("Unable to generate bindings")
-        .write_to_file(path_bindings)
-        .expect("Couldn't write bindings!");
+        .to_string();
+
+    // RIPEMD160 is optional in xmlsec (XMLSEC_NO_RIPEMD160), e.g. Homebrew builds without it.
+    println!("cargo:rustc-check-cfg=cfg(xmlsec_ripemd160)");
+    if bindings.contains("xmlSecOpenSSLTransformRipemd160GetKlass") {
+        println!("cargo:rustc-cfg=xmlsec_ripemd160");
+    }
+
+    std::fs::write(path_bindings, bindings).expect("Couldn't write bindings!");
 }
 
 /// libxml2 include paths; linking is done by the `libxml` crate.
