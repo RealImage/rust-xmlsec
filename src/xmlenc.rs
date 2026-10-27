@@ -69,10 +69,10 @@ impl XmlSecEncryptionContext {
     pub fn set_mode(&mut self, mode: XmlSecEncryptionContextMode) -> &mut Self {
         match mode {
             XmlSecEncryptionContextMode::Key => unsafe {
-                (*self.ctx).mode = bindings::xmlEncCtxMode_xmlEncCtxModeEncryptedKey;
+                (*self.ctx).mode = bindings::xmlSecEncCtxMode_xmlSecEncCtxModeEncryptedKey;
             },
             _ => unsafe {
-                (*self.ctx).mode = bindings::xmlEncCtxMode_xmlEncCtxModeEncryptedData;
+                (*self.ctx).mode = bindings::xmlSecEncCtxMode_xmlSecEncCtxModeEncryptedData;
             },
         };
         self
