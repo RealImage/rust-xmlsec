@@ -4,6 +4,11 @@
 
 use std::path::PathBuf;
 
+/// Oldest system xmlsec1 providing the API used by this crate (e.g. `size_t` lengths,
+/// `xmlSecOpenSSLAppKeyLoadEx`).
+#[cfg(not(target_os = "windows"))]
+const MIN_XMLSEC_VERSION: &str = "1.3.0";
+
 /// Include paths and `-D` defines needed to compile against the xmlsec headers.
 struct XmlSec {
     includes: Vec<PathBuf>,
@@ -56,8 +61,26 @@ fn find_vendored_xmlsec() -> XmlSec {
 fn find_system_xmlsec() -> XmlSec {
     let lib = pkg_config::Config::new()
         .cargo_metadata(false)
+        .atleast_version(MIN_XMLSEC_VERSION)
         .probe("xmlsec1-openssl")
-        .expect("xmlsec1-openssl not found");
+        .unwrap_or_else(|err| {
+            let found = pkg_config::Config::new()
+                .cargo_metadata(false)
+                .probe("xmlsec1-openssl")
+                .map(|l| l.version);
+            match found {
+                Ok(version) => panic!(
+                    "system xmlsec1-openssl {version} is too old, version {MIN_XMLSEC_VERSION} or newer is required.\n\
+                     Install a newer xmlsec1 (and make sure it comes first in PKG_CONFIG_PATH), \
+                     or build the bundled sources with `--features vendored`."
+                ),
+                Err(_) => panic!(
+                    "xmlsec1-openssl >= {MIN_XMLSEC_VERSION} not found: {err}\n\
+                     Install the xmlsec1 development package (including its libxslt dependency), \
+                     or build the bundled sources with `--features vendored`."
+                ),
+            }
+        });
 
     // Default system dirs are searched by the linker anyway. Passing them explicitly
     // (e.g. `/usr/lib` from Homebrew's libxslt.pc on macOS) would place them before
